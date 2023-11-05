@@ -1,7 +1,7 @@
-defmodule Trading.StocksManager do
+defmodule Trading.StockDelivery do
   use GenServer, restart: :permanent, shutdown: 5_000
 
-  @pubsub_name Trading.Pubsub
+  @pubsub_name Trading.PubSub
   @pubsub_topic_common "trading:common"
   @pubsub_topic_stock_prefix "stock"
 
@@ -13,8 +13,12 @@ defmodule Trading.StocksManager do
     GenServer.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
-  def update_stock(stock, price) do
-    GenServer.cast(__MODULE__, {:update_stock, stock, price})
+  def update_stock(stock) do
+    GenServer.cast(__MODULE__, {:update_stock, stock})
+  end
+
+  def print_frontends() do
+    GenServer.cast(__MODULE__, :print_frontends)
   end
 
   @impl true
@@ -31,7 +35,7 @@ defmodule Trading.StocksManager do
   def handle_info({:join, frontend_id}, state) do
     Logger.info("frontend join, id: #{frontend_id}")
 
-    {:noreply,  Map.put(state, frontend_id, DateTime.now())}
+    {:noreply,  Map.put(state, frontend_id, NaiveDateTime.local_now())}
   end
 
   def handle_info(unknown_msg, state) do
@@ -41,9 +45,9 @@ defmodule Trading.StocksManager do
   end
 
   @impl true
-  def handle_cast({:update_stock, stock, price}, state) do
+  def handle_cast({:update_stock, {stock, price, time}}, state) do
     # send new price for all subscribers.
-    PubSub.broadcast(@pubsub_name, @pubsub_topic_stock_prefix <> stock, {:price, price, DateTime.now()})
+    PubSub.broadcast(@pubsub_name, @pubsub_topic_stock_prefix <> stock, {:price, price, time})
 
     {:noreply, state}
   end
@@ -51,6 +55,16 @@ defmodule Trading.StocksManager do
   def handle_cast({:disconnect, frontend_id}, state) do
     {:noreply, Map.delete(state, frontend_id)}
   end
+
+  def handle_cast(:print_frontends, state) do
+    Logger.info("List frontend connected")
+    for {key, joined_at} <- state do
+      Logger.info("#{key} joined at #{inspect joined_at}")
+    end
+    Logger.info("print list frontend DONE!")
+    {:noreply, state}
+  end
+
 
   @impl true
   def terminate(reason, _state) do

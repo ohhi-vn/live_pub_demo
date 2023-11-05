@@ -1,7 +1,15 @@
 defmodule Trading.Simulator do
   use GenServer, restart: :permanent, shutdown: 5_000
 
+  require Logger
+
+  alias Trading.StockDelivery, as: Public
+
   ### APIs ###
+
+  def start_link(_) do
+    GenServer.start_link(__MODULE__, nil, name: __MODULE__)
+  end
 
   def frequency(sleep_time) do
     GenServer.cast(__MODULE__, {:update_sleep_time, sleep_time})
@@ -22,14 +30,14 @@ defmodule Trading.Simulator do
   ### Callbacks ###
 
   @impl true
-  def init(num) do
+  def init(_) do
     table = :ets.new(:stocks, [:set, :protected])
-
+    num = 10_000
     # make number of stock (= num) with default price is 10.
     init_stock(num, table)
 
     # send update event to simulate stock price change overtime.
-    ref = send_after(self, :update_price, 1_000)
+    ref = Process.send_after(self(), :update_price, 1_000)
 
     # init state.
     state =
@@ -58,19 +66,19 @@ defmodule Trading.Simulator do
   def handle_cast({{:update_sleep_time, sleep_time}, element}, state) do
     # refresh update time.
     Process.cancel_timer(state.timer_ref)
-    ref = send_after(self, :update_price, sleep_time)
+    ref = Process.send_after(self(), :update_price, sleep_time)
 
     state =
       state
-      |> Map.update(:sleep_time, sleep_time)
-      |> Map.update(:timer_ref, ref)
+      |> Map.put(:sleep_time, sleep_time)
+      |> Map.put(:timer_ref, ref)
 
     {:noreply, state}
   end
 
   @impl true
   def handle_cast({:update_num_change, num}, state) do
-    {:noreply, Map.update(state, :num_change, num)}
+    {:noreply, Map.put(state, :num_change, num)}
   end
 
   @impl true
@@ -81,7 +89,7 @@ defmodule Trading.Simulator do
   end
 
   @impl true
-  def handle_info(:update_price, %{num_stocs: max_num, range_change: range, num_change: num_change, sleep_time: sleep_time, table: table} = state) do
+  def handle_info(:update_price, %{num_stocks: max_num, range_change: range, num_change: num_change, sleep_time: sleep_time, table: table} = state) do
     # get random stock list.
     stocks = get_random_stocks(num_change, max_num)
 
@@ -89,9 +97,9 @@ defmodule Trading.Simulator do
     update_price(stocks, range, table)
 
     # send update for next time.
-    ref = send_after(self, :update_price, sleep_time)
+    ref = Process.send_after(self(), :update_price, sleep_time)
 
-    {:noreply, Map.update(state, :timer_ref, ref)}
+    {:noreply, Map.put(state, :timer_ref, ref)}
   end
 
   @impl true
@@ -113,7 +121,7 @@ defmodule Trading.Simulator do
 
   defp init_stock(num, table) do
     name = "Stock_#{num}"
-    stock = {name, 10, DateTime.now()}
+    stock = {name, 10, NaiveDateTime.local_now()}
     # save initiated stock to cache.
     :ets.insert(table, stock)
 
@@ -135,7 +143,12 @@ defmodule Trading.Simulator do
         n -> n
       end
 
-    :ets.insert(table, {name, price, DateTime.now()})
+    time = NaiveDateTime.local_now()
+    stock = {name, price, time}
+    :ets.insert(table, stock)
+
+    # broadcast to frontend
+    Public.update_stock(stock)
 
     update_price(rest, range, table)
   end

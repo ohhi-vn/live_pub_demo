@@ -13,7 +13,11 @@ defmodule LivePubDemo.Application do
       # Start the PubSub system
       {Phoenix.PubSub, name: LivePubDemo.PubSub},
       # Start the Endpoint (http/https)
-      LivePubDemoWeb.Endpoint
+      LivePubDemoWeb.Endpoint,
+
+      # For internal pubsub
+      Supervisor.child_spec({Phoenix.PubSub, name: Trading.PubSub}, id: Trading.InternalPubSub),
+
       # Start a worker by calling: LivePubDemo.Worker.start_link(arg)
       # {LivePubDemo.Worker, arg}
     ]
