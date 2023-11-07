@@ -11,7 +11,7 @@ defmodule Trading.Simulator do
     GenServer.start_link(__MODULE__, nil, name: __MODULE__)
   end
 
-  def frequency(sleep_time) do
+  def set_sleep_time(sleep_time) do
     GenServer.cast(__MODULE__, {:update_sleep_time, sleep_time})
   end
 
@@ -23,8 +23,8 @@ defmodule Trading.Simulator do
     GenServer.cast(__MODULE__, {:update_num_change, num})
   end
 
-  def reset_stocks() do
-    GenServer.cast(__MODULE__, :reset_stocks)
+  def set_stocks(price) do
+    GenServer.cast(__MODULE__, {:set_price_all, price})
   end
 
   ### Callbacks ###
@@ -37,36 +37,33 @@ defmodule Trading.Simulator do
     init_stock(num, table)
 
     # send update event to simulate stock price change overtime.
-    ref = Process.send_after(self(), :update_price, 1_000)
+    ref = Process.send_after(self(), :update_price, 300)
 
     # init state.
     state =
       %{}
       |> Map.put_new(:table, table)
       |> Map.put_new(:num_stocks, num)
-      |> Map.put_new(:sleep_time, 300)
-      |> Map.put_new(:num_change, div(num, 10))
-      |> Map.put_new(:range_change, 3)
+      |> Map.put_new(:sleep_time, 500)
+      |> Map.put_new(:num_change, div(num, 1000))
+      |> Map.put_new(:range_change, 10)
       |> Map.put_new(:timer_ref, ref)
 
     {:ok, state}
   end
 
   @impl true
-  def handle_cast({:update_sleep_time, sleep_time}, state) do
-    {:noreply, Map.update(state, :sleep, sleep_time)}
-  end
-
-  @impl true
   def handle_cast( {:update_range_change, range}, state) do
-    {:noreply, Map.update(state, :update_range_change, range)}
+    {:noreply, Map.put(state, :update_range_change, range)}
   end
 
   @impl true
-  def handle_cast({{:update_sleep_time, sleep_time}, element}, state) do
+  def handle_cast({:update_sleep_time, sleep_time}, state) do
     # refresh update time.
     Process.cancel_timer(state.timer_ref)
     ref = Process.send_after(self(), :update_price, sleep_time)
+
+    Logger.debug("update sleep time, new sleep time: #{sleep_time}")
 
     state =
       state
@@ -82,24 +79,55 @@ defmodule Trading.Simulator do
   end
 
   @impl true
-  def handle_cast(:reset_stocks, %{num_stocks: num, table: table} = state) do
-    init_stock(num, table)
+  def handle_cast( {:set_price_all, price}, %{num_stocks: num, table: table} = state) do
+    set_stock(num, price, table)
 
     {:noreply, state}
   end
 
   @impl true
-  def handle_info(:update_price, %{num_stocks: max_num, range_change: range, num_change: num_change, sleep_time: sleep_time, table: table} = state) do
+  def handle_info(:update_price, %{num_stocks: max_num, range_change: range, num_change: :all, table: table} = state) do
     # get random stock list.
-    stocks = get_random_stocks(num_change, max_num)
+    stocks =
+      Enum.map(1..max_num, fn n -> "stock_#{n}" end )
 
     # update price for stocks
     update_price(stocks, range, table)
 
-    # send update for next time.
-    ref = Process.send_after(self(), :update_price, sleep_time)
+    Logger.debug("update all stock price, size: #{max_num}, range: #{range}, num_change: all")
 
-    {:noreply, Map.put(state, :timer_ref, ref)}
+    # send update for next time.
+    ref = Process.send_after(self(), :update_price, state.sleep_time)
+
+    state =
+      state
+      |> Map.put(:timer_ref, ref)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(:update_price, %{num_stocks: max_num, range_change: range, num_change: num_change, table: table} = state) do
+    # get random stock list.
+    stocks =
+      get_random_stocks(num_change, max_num)
+      |> Enum.uniq()
+
+    # update price for stocks
+    update_price(stocks, range, table)
+
+
+    Logger.debug("update all stock price, size: #{length(stocks)}, range: #{range}, num_change: #{num_change}")
+
+
+    # send update for next time.
+    ref = Process.send_after(self(), :update_price, state.sleep_time)
+
+    state =
+      state
+      |> Map.put(:timer_ref, ref)
+
+    {:noreply, state}
   end
 
   @impl true
@@ -120,13 +148,31 @@ defmodule Trading.Simulator do
   end
 
   defp init_stock(num, table) do
-    name = "Stock_#{num}"
-    stock = {name, 10, NaiveDateTime.local_now()}
+    name = "stock_#{num}"
+    stock = {name, 100, NaiveDateTime.local_now()}
     # save initiated stock to cache.
     :ets.insert(table, stock)
 
     init_stock(num - 1, table)
   end
+
+    # init number of stock with default price is 10.
+    defp set_stock(0, _price, _table) do
+      :ok
+    end
+
+    defp set_stock(num, price, table) do
+      name = "stock_#{num}"
+      stock = {name, price, NaiveDateTime.local_now()}
+      # save initiated stock to cache.
+      :ets.insert(table, stock)
+
+      # broadcast to frontend
+      Public.update_stock(stock)
+
+      set_stock(num - 1, price, table)
+    end
+
 
   # random a price change.
   defp update_price([], _range, _table) do
@@ -135,10 +181,10 @@ defmodule Trading.Simulator do
   defp update_price([name | rest], range, table) do
     [{_, price, _}] = :ets.lookup(table, name)
 
-    changed = div(price, 2) - :rand.uniform(range)
+    changed = div(range, 2) - Enum.random(1..range)
 
     price =
-      case price + :rand.uniform(range) do
+      case price + changed do
         n when n < 1 -> 1 # don't go to zero or negative number
         n -> n
       end
@@ -157,12 +203,12 @@ defmodule Trading.Simulator do
   defp get_random_stocks(num, max_num) do
     get_random_stocks(num, max_num, [])
   end
-  defp get_random_stocks(0, max_num, result) do
+  defp get_random_stocks(0, _, result) do
     result
   end
   defp get_random_stocks(num, max_num, result) do
-    num = :rand.uniform(max_num)
-    name = "Stock_#{num}"
+    num = Enum.random(1..max_num)
+    name = "stock_#{num}"
     get_random_stocks(num - 1, max_num, [ name | result] )
   end
 end

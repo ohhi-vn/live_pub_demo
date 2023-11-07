@@ -20,7 +20,7 @@ defmodule LivePubDemo.MixProject do
   def application do
     [
       mod: {LivePubDemo.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger,:observer, :wx, :runtime_tools]
     ]
   end
 

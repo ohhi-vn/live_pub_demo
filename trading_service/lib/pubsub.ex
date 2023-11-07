@@ -3,7 +3,7 @@ defmodule Trading.StockDelivery do
 
   @pubsub_name Trading.PubSub
   @pubsub_topic_common "trading:common"
-  @pubsub_topic_stock_prefix "stock"
+  @pubsub_topic_stock_prefix "stock:"
 
   require Logger
 
@@ -45,9 +45,9 @@ defmodule Trading.StockDelivery do
   end
 
   @impl true
-  def handle_cast({:update_stock, {stock, price, time}}, state) do
+  def handle_cast({:update_stock, {stock_name, _, _} = stock}, state) do
     # send new price for all subscribers.
-    PubSub.broadcast(@pubsub_name, @pubsub_topic_stock_prefix <> stock, {:price, price, time})
+    PubSub.broadcast(@pubsub_name, @pubsub_topic_stock_prefix <> stock_name, {:update_price, stock})
 
     {:noreply, state}
   end

@@ -15,9 +15,6 @@
         <nav>
           <ul>
             <li>Phoenix LiveView & Pubsub for Realtime & Scalable Webapp</li>
-            <%= if function_exported?(Routes, :live_dashboard_path, 2) do %>
-              <li><%= link "LiveDashboard", to: Routes.live_dashboard_path(@conn, :home) %></li>
-            <% end %>
           </ul>
         </nav>
     

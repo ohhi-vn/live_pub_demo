@@ -19,7 +19,8 @@ defmodule LivePubDemoWeb.Router do
 
     get "/", PageController, :index
 
-    live "/stocks", Stocks
+    live "/dynamic_list", DynamicStockList
+    live "/fix_list", FixStockList
   end
 
   # Other scopes may use custom stacks.
