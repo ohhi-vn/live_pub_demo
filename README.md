@@ -14,30 +14,28 @@ Using Phoenix PubSub to transport data from trading to frontend.
 
 ## Guide
 
+For run demo, please follow step.
+
+In case you are binding by other IP please change config and run commands.
+
 Run trading_service first
 
 ```bash
 cd trading_service
-iex --cookie demo  --sname trading@localhost -S mix
+iex --name trading@127.0.0.1 -S mix
 ```
 
 Open new Terminal then run
 
 ```bash
 cd frontend_service
-PORT=4001 iex --cookie demo --sname fe_1@localhost -S mix phx.server
-```
-
-Join frontend to trading service from Elixir shell
-
-```Elixir
-Node.connect(:trading@localhost)
+PORT=4001 iex --name frontend_1@127.0.0.1 -S mix phx.server
 ```
 
 For multi frontend you can start other instance like
 
 ```bash
-PORT=4002 iex --cookie demo --sname fe_2@localhost -S mix phx.server 
+PORT=4002 iex --name frontend_2@127.0.0.1 -S mix phx.server
 ```
 
 and join to trading service by above command.

@@ -7,6 +7,8 @@ defmodule LivePubDemo.Application do
 
   @impl true
   def start(_type, _args) do
+    topologies = Application.fetch_env!(:libcluster, :topologies)
+
     children = [
       # Start the Telemetry supervisor
       LivePubDemoWeb.Telemetry,
@@ -18,8 +20,7 @@ defmodule LivePubDemo.Application do
       # For internal pubsub
       Supervisor.child_spec({Phoenix.PubSub, name: Trading.PubSub}, id: Trading.InternalPubSub),
 
-      # Start a worker by calling: LivePubDemo.Worker.start_link(arg)
-      # {LivePubDemo.Worker, arg}
+      {Cluster.Supervisor, [topologies, [name: LivePubDemo.ClusterSupervisor]]}
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

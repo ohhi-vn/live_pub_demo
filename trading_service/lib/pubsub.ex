@@ -21,6 +21,11 @@ defmodule Trading.StockDelivery do
     GenServer.cast(__MODULE__, :print_frontends)
   end
 
+  def direct_send( {stock_name, _, _} = stock) do
+    PubSub.broadcast(@pubsub_name, @pubsub_topic_stock_prefix <> stock_name, {:update_price, stock})
+
+  end
+
   @impl true
   def init(_) do
     # subsribe pubsub to get common info from frontend service.

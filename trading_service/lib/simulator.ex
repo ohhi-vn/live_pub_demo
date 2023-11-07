@@ -168,7 +168,8 @@ defmodule Trading.Simulator do
       :ets.insert(table, stock)
 
       # broadcast to frontend
-      Public.update_stock(stock)
+      #Public.update_stock(stock)
+      Public.direct_send(stock)
 
       set_stock(num - 1, price, table)
     end
@@ -194,7 +195,10 @@ defmodule Trading.Simulator do
     :ets.insert(table, stock)
 
     # broadcast to frontend
-    Public.update_stock(stock)
+   # Public.update_stock(stock)
+    Public.direct_send(stock)
+
+
 
     update_price(rest, range, table)
   end

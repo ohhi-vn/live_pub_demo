@@ -4,10 +4,13 @@ defmodule Trading.Application do
 
   @impl true
   def start(_type, _args) do
+    topologies = Application.fetch_env!(:libcluster, :topologies)
+
     children = [
       {Phoenix.PubSub, name: Trading.PubSub},
       {Trading.Simulator, []},
-      {Trading.StockDelivery, []}
+      {Trading.StockDelivery, []},
+      {Cluster.Supervisor, [topologies, [name: Trading.ClusterSupervisor]]}
     ]
 
     opts = [
