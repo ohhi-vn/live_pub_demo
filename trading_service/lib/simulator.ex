@@ -31,7 +31,7 @@ defmodule Trading.Simulator do
 
   @impl true
   def init(_) do
-    table = :ets.new(:stocks, [:set, :protected])
+    table = :ets.new(:stocks_table, [:set, :protected, :named_table])
     num = 10_000
     # make number of stock (= num) with default price is 10.
     init_stock(num, table)

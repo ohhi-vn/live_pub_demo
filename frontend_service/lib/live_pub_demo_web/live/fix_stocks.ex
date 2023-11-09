@@ -9,13 +9,14 @@ defmodule LivePubDemoWeb.FixStockList do
   @pubsub_topic_common "trading:common"
   @pubsub_topic_stock_prefix "stock:"
 
-  def mount(_params, _session, socket) do
-    socket =
-      socket
-      |> gen_stock()
-      |> assign(:counter, 0)
+  def mount(_params, session, socket) do
 
-    {:ok, socket}
+    {socket, stock_names} = gen_stock(socket)
+
+    PubSub.broadcast(@pubsub_name, @pubsub_topic_common, {:join, Map.get(session, "session_id"), stock_names})
+
+
+    {:ok,  assign(socket, :counter, 0)}
   end
 
   def render(assigns) do
@@ -112,14 +113,14 @@ defmodule LivePubDemoWeb.FixStockList do
   end
 
   defp gen_stock(socket) do
-    gen_stock(1, 10, socket)
+    gen_stock(1, 10, socket, [])
   end
 
-  defp gen_stock(from, to, socket) when from > to do
-    socket
+  defp gen_stock(from, to, socket, stock_names) when from > to do
+    {socket, stock_names}
   end
 
-  defp gen_stock(from, to, socket) do
+  defp gen_stock(from, to, socket, stock_names) do
     name = "stock_#{from}"
     stock =
       %{}
@@ -131,6 +132,6 @@ defmodule LivePubDemoWeb.FixStockList do
     # subscribe stock for listening price changing
     PubSub.subscribe(@pubsub_name, @pubsub_topic_stock_prefix <> name)
 
-    gen_stock(from + 1, to, assign(socket, String.to_atom(name), stock))
+    gen_stock(from + 1, to, assign(socket, String.to_atom(name), stock), [name | stock_names])
   end
 end

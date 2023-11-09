@@ -3,6 +3,8 @@
 
 /frontend_service/_build/
 /trading_service/_build/
+/frontend_service/deps/
+/trading_service/deps/
 
 # If you run "mix test --cover", coverage assets end up here.
 /cover/

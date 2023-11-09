@@ -37,14 +37,20 @@ defmodule Trading.StockDelivery do
 
   # managing frontend
   @impl true
-  def handle_info({:join, frontend_id}, state) do
-    Logger.info("frontend join, id: #{frontend_id}")
+  def handle_info({:join, frontend_id, stocks}, state) do
+    Logger.info("frontend join, id: #{frontend_id}\nstocks: #{stocks}")
 
-    {:noreply,  Map.put(state, frontend_id, NaiveDateTime.local_now())}
+    # update all for first time LiveView.
+    for stock <- stocks do
+      [v] = :ets.lookup(:stocks_table, stock)
+      PubSub.broadcast(@pubsub_name, @pubsub_topic_stock_prefix <> stock, {:update_price, v})
+    end
+
+    {:noreply,  Map.put(state, frontend_id, {NaiveDateTime.local_now(), stocks})}
   end
 
   def handle_info(unknown_msg, state) do
-    Logger.debug("unknown msg, #{inspect unknown_msg}")
+    Logger.warning("unknown msg, #{inspect unknown_msg}")
 
     {:noreply, state}
   end
@@ -63,10 +69,11 @@ defmodule Trading.StockDelivery do
 
   def handle_cast(:print_frontends, state) do
     Logger.info("List frontend connected")
-    for {key, joined_at} <- state do
-      Logger.info("#{key} joined at #{inspect joined_at}")
+    for {key, {joined_at, stocks}} <- state do
+      Logger.info("#{key} joined at #{inspect joined_at}\nStocks: #{stocks}")
     end
     Logger.info("print list frontend DONE!")
+
     {:noreply, state}
   end
 

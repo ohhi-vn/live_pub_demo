@@ -6,6 +6,7 @@ defmodule LivePubDemoWeb.Endpoint do
   # Set :encryption_salt if you would also like to encrypt it.
   @session_options [
     store: :cookie,
+    max_age: 9999999999,
     key: "_live_pub_demo_key",
     signing_salt: "kau2Gg9r"
   ]

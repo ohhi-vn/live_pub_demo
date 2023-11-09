@@ -9,7 +9,7 @@ defmodule LivePubDemoWeb.DynamicStockList do
   @pubsub_topic_common "trading:common"
   @pubsub_topic_stock_prefix "stock:"
 
-  def mount(params, _session, socket) do
+  def mount(params, session, socket) do
     from =
       Map.get(params, "from", "1")
       |> String.to_integer()
@@ -19,6 +19,9 @@ defmodule LivePubDemoWeb.DynamicStockList do
       |> String.to_integer()
 
     stocks = gen_stock(from, to)
+    stock_names = for {name, _} <- stocks, into: [], do: name
+    PubSub.broadcast(@pubsub_name, @pubsub_topic_common, {:join,  Map.get(session, "session_id"), stock_names})
+
     socket =
       socket
       |> assign(:stocks, stocks)
@@ -69,8 +72,8 @@ defmodule LivePubDemoWeb.DynamicStockList do
 
   def handle_info(:push_to_client, socket) do
     socket =
-      if Map.size(socket.assigns.cached) > 0 do
-        Logger.info("update stock price for client, size: #{Kernel.map_size(socket.assigns.cached)}")
+      if map_size(socket.assigns.cached) > 0 do
+        Logger.info("update stock price for client, size: #{map_size(socket.assigns.cached)}")
 
         newStocks = Map.merge(socket.assigns.stocks, socket.assigns.cached, &update_stock/3)
 

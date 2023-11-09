@@ -8,6 +8,7 @@ defmodule LivePubDemoWeb.Router do
     plug :put_root_layout, {LivePubDemoWeb.LayoutView, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug :assign_session_id
   end
 
   pipeline :api do
@@ -21,6 +22,18 @@ defmodule LivePubDemoWeb.Router do
 
     live "/dynamic_list", DynamicStockList
     live "/fix_list", FixStockList
+    live "/custom_list", CustomStockList
+  end
+
+
+  defp assign_session_id(conn, _) do
+    if get_session(conn, :session_id) do
+      conn
+    else
+      session_id = UUID.uuid1()
+      conn
+      |> put_session(:session_id, session_id)
+    end
   end
 
   # Other scopes may use custom stacks.
@@ -52,8 +65,6 @@ defmodule LivePubDemoWeb.Router do
   if Mix.env() == :dev do
     scope "/dev" do
       pipe_through :browser
-
-      forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
   end
 end
