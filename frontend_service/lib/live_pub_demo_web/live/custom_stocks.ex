@@ -9,18 +9,28 @@ defmodule LivePubDemoWeb.CustomStockList do
   @pubsub_topic_common "trading:common"
   @pubsub_topic_stock_prefix "stock:"
 
+  ### Callbacks ###
+
+  @impl true
   def mount(params, session, socket) do
-    PubSub.broadcast(@pubsub_name, @pubsub_topic_common, {:join,  Map.get(session, "session_id"), []})
+    session_id = Map.get(session, "session_id")
+    PubSub.broadcast(@pubsub_name, @pubsub_topic_common, {:join,  session_id, []})
 
     socket =
       socket
       |> assign(:stocks, %{})
       |> assign(:counter, 0)
       |> assign(:total, 0)
+      |> assign(:page_title, "Custom Stock List")
+      |> assign(:session_id, session_id)
+
+    fields = %{"list_stock" => ""}
+    socket = assign(socket, form: to_form(fields))
 
     {:ok, socket}
   end
 
+  @impl true
   def render(assigns) do
    ~H"""
     <section class="phx-hero">
@@ -40,13 +50,19 @@ defmodule LivePubDemoWeb.CustomStockList do
         <% end %>
     </table>
     <p>Update Counter: <%= @counter %></p>
-    <form phx-change="add_stock">
-       <input name="stock" phx-debounce="30" value="" />
-    </form>
+
+    <.form
+      for={@form}
+      phx-change="add_stock"
+    >
+      <.input field={@form[:list_stock]} />
+    </.form>
+
     </section>
     """
   end
 
+  @impl true
   def handle_info({:update_price, {stock_name, price, time}}, socket) do
     #Logger.info("update stock price, id: #{stock_name}")
 
@@ -82,6 +98,7 @@ defmodule LivePubDemoWeb.CustomStockList do
     {:noreply, update(socket, :counter, &(&1 + 1))}
   end
 
+  @impl true
   def handle_info({:add_stock, stock_name}, socket) do
     Logger.info("update stock price, id: #{stock_name}")
 
@@ -93,21 +110,58 @@ defmodule LivePubDemoWeb.CustomStockList do
     {:noreply, assign(socket, :stocks, Map.put(socket.assigns, stock_name, stock))}
   end
 
-  def handle_event("add_stock", %{"stock" => value},  socket) do
+  @impl true
+  def handle_event("add_stock", %{"list_stock" => value},  socket) do
     Logger.debug("add event, value: #{inspect value}")
     new_list = String.split(value)
     current_stocks = socket.assigns.stocks
 
     updated_stocks = update_stocks(new_list, current_stocks)
 
-    {:noreply, assign(socket, :stocks, updated_stocks)}
+    fields = %{"list_stock" => value}
+
+    socket =
+      socket
+      |> assign(:stocks, updated_stocks)
+      |> assign(:total, map_size(updated_stocks))
+      |> assign(:page_title, "Custom Stock List (#{map_size(updated_stocks)})")
+      |> assign(form: to_form(fields))
+
+    {:noreply, socket}
   end
+
+  @impl true
+  def terminate(reason, socket) do
+    Logger.info("session: #{socket.assigns.session_id}, terminate: #{inspect reason}")
+
+    for stock_name <- Map.keys(socket.assigns.stocks) do
+      PubSub.unsubscribe(@pubsub_name, @pubsub_topic_stock_prefix <> stock_name)
+    end
+
+    socket
+  end
+
+  ### Public functions ###
+
+  def input(assigns) do
+    ~H"""
+    <input type="text" name={@field.name} id={@field.id} value={@field.value} placeholder="Add stock here, seperated by space" />
+    """
+  end
+
+
+  ### Private functions ###
 
   defp update_stocks(list, stocks) when is_map(stocks) and is_list(list) do
     update_stocks(list, stocks, %{})
   end
 
-  defp update_stocks([], _stocks, new_stocks) do
+  defp update_stocks([], stocks, new_stocks) do
+    # unsubscribe stocks not in new list
+    for stock_name <- Map.keys(stocks), !Map.has_key?(new_stocks, stock_name) do
+      PubSub.unsubscribe(@pubsub_name, @pubsub_topic_stock_prefix <> stock_name)
+    end
+
     new_stocks
   end
 

@@ -9,14 +9,24 @@ defmodule LivePubDemoWeb.FixStockList do
   @pubsub_topic_common "trading:common"
   @pubsub_topic_stock_prefix "stock:"
 
+
+  ### Callbacks ###
+
   def mount(_params, session, socket) do
+    session_id = Map.get(session, "session_id")
 
     {socket, stock_names} = gen_stock(socket)
 
-    PubSub.broadcast(@pubsub_name, @pubsub_topic_common, {:join, Map.get(session, "session_id"), stock_names})
+    PubSub.broadcast(@pubsub_name, @pubsub_topic_common, {:join, session_id, stock_names})
 
+    socket =
+      socket
+      |> assign(:page_title, "Fixed Stock List (#{length(stock_names)})")
+      |> assign(:counter, 0)
+      |> assign(:session_id, session_id)
+      |> assign(:stock_list, stock_names)
 
-    {:ok,  assign(socket, :counter, 0)}
+    {:ok,  socket}
   end
 
   def render(assigns) do
@@ -111,6 +121,19 @@ defmodule LivePubDemoWeb.FixStockList do
 
     {:noreply, update(socket, :counter, &(&1 + 1))}
   end
+
+  @impl true
+  def terminate(reason, socket) do
+    Logger.info("session: #{socket.assigns.session_id}, terminate: #{inspect reason}")
+
+    for stock_name <- socket.assigns.stock_list do
+      PubSub.unsubscribe(@pubsub_name, @pubsub_topic_stock_prefix <> stock_name)
+    end
+
+    socket
+  end
+
+  ### Private functions ###
 
   defp gen_stock(socket) do
     gen_stock(1, 10, socket, [])

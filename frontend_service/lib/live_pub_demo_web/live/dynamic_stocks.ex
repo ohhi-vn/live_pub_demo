@@ -9,6 +9,9 @@ defmodule LivePubDemoWeb.DynamicStockList do
   @pubsub_topic_common "trading:common"
   @pubsub_topic_stock_prefix "stock:"
 
+  ### Callbacks ###
+
+  @impl true
   def mount(params, session, socket) do
     from =
       Map.get(params, "from", "1")
@@ -18,9 +21,11 @@ defmodule LivePubDemoWeb.DynamicStockList do
       Map.get(params, "to", "10")
       |> String.to_integer()
 
+    session_id = Map.get(session, "session_id")
+
     stocks = gen_stock(from, to)
     stock_names = for {name, _} <- stocks, into: [], do: name
-    PubSub.broadcast(@pubsub_name, @pubsub_topic_common, {:join,  Map.get(session, "session_id"), stock_names})
+    PubSub.broadcast(@pubsub_name, @pubsub_topic_common, {:join, session_id, stock_names})
 
     socket =
       socket
@@ -29,12 +34,15 @@ defmodule LivePubDemoWeb.DynamicStockList do
       |> assign(:to, to)
       |> assign(:cached, %{})
       |> assign(:counter, 0)
+      |> assign(:page_title, "Dynamic Stock List (#{map_size(stocks)})")
+      |> assign(:session_id, session_id)
 
       Process.send_after(self(), :push_to_client, 1000)
 
     {:ok, socket}
   end
 
+  @impl true
   def render(assigns) do
    ~H"""
     <section class="phx-hero">
@@ -58,6 +66,7 @@ defmodule LivePubDemoWeb.DynamicStockList do
     """
   end
 
+  @impl true
   def handle_info({:update_price, {stock_name, price, time}}, socket) do
     Logger.info("update stock price, id: #{stock_name}")
 
@@ -70,6 +79,7 @@ defmodule LivePubDemoWeb.DynamicStockList do
     {:noreply, assign(socket, :cached, cached)}
   end
 
+  @impl true
   def handle_info(:push_to_client, socket) do
     socket =
       if map_size(socket.assigns.cached) > 0 do
@@ -91,6 +101,19 @@ defmodule LivePubDemoWeb.DynamicStockList do
 
     {:noreply, socket}
   end
+
+  @impl true
+  def terminate(reason, socket) do
+    Logger.info("session: #{socket.assigns.session_id}, terminate: #{inspect reason}")
+
+    for stock_name <- Map.keys(socket.assigns.stocks) do
+      PubSub.unsubscribe(@pubsub_name, @pubsub_topic_stock_prefix <> stock_name)
+    end
+
+    {:ok, socket}
+  end
+
+  ### private functions ###
 
   defp update_stock(_key, old, new) do
     color =

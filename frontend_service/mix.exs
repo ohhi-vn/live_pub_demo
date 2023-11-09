@@ -47,7 +47,8 @@ defmodule LivePubDemo.MixProject do
       {:jason, "~> 1.2"},
       {:plug_cowboy, "~> 2.5"},
       {:libcluster, "~> 3.3"},
-      {:uuid, "~> 1.1"}
+      {:uuid, "~> 1.1"},
+      {:tailwind, "~> 0.1", runtime: Mix.env() == :dev}
     ]
   end
 
@@ -60,7 +61,9 @@ defmodule LivePubDemo.MixProject do
   defp aliases do
     [
       setup: ["deps.get"],
-      "assets.deploy": ["esbuild default --minify", "phx.digest"]
+      "assets.deploy": ["tailwind default --minify", "esbuild default --minify", "phx.digest"],
+      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
+      "assets.build": ["tailwind default", "esbuild default"],
     ]
   end
 end
