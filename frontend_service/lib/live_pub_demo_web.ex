@@ -45,7 +45,7 @@ defmodule LivePubDemoWeb do
   def live_view do
     quote do
       use Phoenix.LiveView,
-        layout: {LivePubDemoWeb.LayoutView, "live.html"}
+        layout: {LivePubDemoWeb.LayoutView, :live} # {LivePubDemoWeb.LayoutView, "live.html"}
 
       unquote(view_helpers())
     end

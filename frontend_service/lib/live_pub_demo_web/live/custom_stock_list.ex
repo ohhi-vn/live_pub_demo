@@ -42,11 +42,7 @@ defmodule LivePubDemoWeb.CustomStockList do
             <td>Time</td>
         </tr>
         <%= for {_, stock} <- @stocks do %>
-            <tr>
-                <td><p style={stock.color}><%= stock.stock_name %></p></td>
-                <td><p style={stock.color}><%= stock.stock_price %></p></td>
-                <td><%= stock.update_at %></td>
-            </tr>
+          <.live_component module={LivePubDemoWeb.StockItem} id={stock.stock_name} stock={stock} />
         <% end %>
     </table>
     <p>Update Counter: <%= @counter %></p>

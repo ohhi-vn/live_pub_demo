@@ -6,11 +6,11 @@ This is simple demo for sharing topic "Phoenix LiveView & Pubsub for Realtime & 
 
 Project has two part frontend service & trading service.
 
-Trading service is a simulator stock price & push stock price change to frontend.
+Trading service is a simulator stock price & push price change to frontend.
 
 Frontend show stock price from simulator by Phoenix LiveView.
 
-Using Phoenix PubSub to transport data from trading to frontend.
+Using Phoenix PubSub to transport data between trading to frontend.
 
 ### Flow of events
 
@@ -31,9 +31,9 @@ sequenceDiagram
 
 ## Guide
 
-For run demo, please follow step.
+To run demo, please follow step.
 
-In case you are binding by other IP please change config and run commands.
+In case you are binding by other IP please change app config and commands.
 
 Run trading_service first
 
@@ -57,13 +57,15 @@ For multi frontend you can start other instance like
 PORT=4002 iex --name frontend_2@127.0.0.1 -S mix phx.server
 ```
 
-and join to trading service by above command.
+frontends & trading service auto join to cluster by `:libcluster`.
 
-Open browser then go to: 
+Note: If you use Windows please run `set PORT=4001` to set environment variable. Similar for other instance.
+
+Open browser then go to:
 
 dynamic stock list [http://localhost:4001/dynamic_list?from=1&to=1500](http://localhost:4001/dynamic_list?from=1&to=1500)
 
-You can change number of stocks by change `num` in query parameter (from 1 to 10k)
+You can change number of stocks by change `from` and `to` parameter (from 1 to 10k) in query.
 
 fixed stock list [http://localhost:4001/fix_list](http://localhost:4001/fix_list)
 
