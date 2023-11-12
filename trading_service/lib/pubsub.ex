@@ -23,7 +23,6 @@ defmodule Trading.StockDelivery do
 
   def direct_send( {stock_name, _, _} = stock) do
     PubSub.broadcast(@pubsub_name, @pubsub_topic_stock_prefix <> stock_name, {:update_price, stock})
-
   end
 
   @impl true
