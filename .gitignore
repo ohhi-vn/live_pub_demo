@@ -35,3 +35,4 @@ live_pub_demo-*.tar
 npm-debug.log
 /assets/node_modules/
 
+.DS_Store
