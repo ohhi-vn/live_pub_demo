@@ -36,10 +36,12 @@ defmodule LivePubDemoWeb.DynamicStockList do
       |> assign(:counter, 0)
       |> assign(:page_title, "Dynamic Stock List (#{map_size(stocks)})")
       |> assign(:session_id, session_id)
+      |> assign(:sleep_time, 300)
 
-      Process.send_after(self(), :push_to_client, 1000)
 
-    {:ok, socket}
+    timer_ref =  Process.send_after(self(), :push_to_client, socket.assigns.sleep_time)
+
+    {:ok, assign(socket, :timer_ref, timer_ref)}
   end
 
   @impl true
@@ -58,6 +60,9 @@ defmodule LivePubDemoWeb.DynamicStockList do
         <% end %>
     </table>
     <p>Update Counter: <%= @counter %></p>
+    <button phx-click="update_10">update every 10ms</button>
+    <button phx-click="update_100">update every 100ms</button>
+    <button phx-click="update_1000">update every 1000ms</button>
     </section>
     """
   end
@@ -93,14 +98,62 @@ defmodule LivePubDemoWeb.DynamicStockList do
       end
 
     # send update for next time.
-    Process.send_after(self(), :push_to_client, 100)
+    timer_ref =  Process.send_after(self(), :push_to_client, socket.assigns.sleep_time)
 
-    {:noreply, socket}
+    {:noreply, assign(socket, :timer_ref, timer_ref)}
+  end
+
+  @impl true
+  def handle_event("update_10", _, socket) do
+    Logger.info("set sleep time to 10")
+
+    socket =
+      socket
+      |> assign(:sleep_time, 10)
+
+      Process.cancel_timer(socket.assigns.timer_ref)
+
+      timer_ref =  Process.send_after(self(), :push_to_client, socket.assigns.sleep_time)
+
+      {:noreply, assign(socket, :timer_ref, timer_ref)}
+  end
+
+  @impl true
+  def handle_event("update_100", _, socket) do
+    Logger.info("set sleep time to 100")
+
+    socket =
+      socket
+      |> assign(:sleep_time, 100)
+
+    Process.cancel_timer(socket.assigns.timer_ref)
+
+    timer_ref =  Process.send_after(self(), :push_to_client, socket.assigns.sleep_time)
+
+    {:noreply, assign(socket, :timer_ref, timer_ref)}
+
+  end
+
+  @impl true
+  def handle_event("update_1000", _, socket) do
+    Logger.info("set sleep time to 1000")
+
+    socket =
+      socket
+      |> assign(:sleep_time, 1000)
+
+      Process.cancel_timer(socket.assigns.timer_ref)
+
+      timer_ref =  Process.send_after(self(), :push_to_client, socket.assigns.sleep_time)
+
+      {:noreply, assign(socket, :timer_ref, timer_ref)}
   end
 
   @impl true
   def terminate(reason, socket) do
     Logger.info("session: #{socket.assigns.session_id}, terminate: #{inspect reason}")
+
+    Process.cancel_timer(socket.assigns.timer_ref)
 
     for stock_name <- Map.keys(socket.assigns.stocks) do
       PubSub.unsubscribe(@pubsub_name, @pubsub_topic_stock_prefix <> stock_name)
