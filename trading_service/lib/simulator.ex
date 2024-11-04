@@ -44,7 +44,7 @@ defmodule Trading.Simulator do
       %{}
       |> Map.put_new(:table, table)
       |> Map.put_new(:num_stocks, num)
-      |> Map.put_new(:sleep_time, 500)
+      |> Map.put_new(:sleep_time, 1_000)
       |> Map.put_new(:num_change, div(num, 1000))
       |> Map.put_new(:range_change, 10)
       |> Map.put_new(:timer_ref, ref)

@@ -13,16 +13,18 @@ defmodule LivePubDemoWeb.CustomStockList do
 
   @impl true
   def mount(params, session, socket) do
+    #:dbg.p(self(), :m)
     session_id = Map.get(session, "session_id")
     PubSub.broadcast(@pubsub_name, @pubsub_topic_common, {:join,  session_id, []})
 
     socket =
       socket
-      |> assign(:stocks, %{})
+      |> stream(:stocks, [])
       |> assign(:counter, 0)
       |> assign(:total, 0)
       |> assign(:page_title, "Custom Stock List")
       |> assign(:session_id, session_id)
+      |> assign(:cached, %{})
 
     fields = %{"list_stock" => ""}
     socket = assign(socket, form: to_form(fields))
@@ -34,25 +36,44 @@ defmodule LivePubDemoWeb.CustomStockList do
   def render(assigns) do
    ~H"""
     <section class="phx-hero">
-    <h1>List of stocks (custom list, total: <%= @total %>)</h1>
-    <table>
-        <tr>
-            <td>Stock</td>
-            <td>Price</td>
-            <td>Time</td>
-        </tr>
-        <%= for {_, stock} <- @stocks do %>
-          <.live_component module={LivePubDemoWeb.StockItem} id={stock.stock_name} stock={stock} />
-        <% end %>
-    </table>
-    <p>Update Counter: <%= @counter %></p>
+    <div class="flex-row">
+    <div>
+    <p class="text-xl font-bold">List of stocks (custom list, total: <%= @total %>)</p>
+    </div>
+
+    <div class="grid gird-cols-5 sx:grid-cols-3 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-6 p-1  space-y-3 space-x-3" div id="stocks" phx-update="stream">
+    <div :for={{id, stock} <- @streams.stocks} id={id}>
+      <div class="container max-w-md rounded overflow-hidden shadow-lg bg-gray-300">
+      <div class="px-2 py-2" >
+          <div class="font-bold text-xl mb-2"><%= stock.stock_name %></div>
+          <div class="flex flex-col text-sm text-gray-600 italic">
+          <div class="" style={stock.color}> Price: <%= stock.stock_price %></div>
+          <div class=""> Update:
+          <%= if stock.update_at == "N/A" do %>
+            <%= "N/A" %>
+          <% else %>
+           <%= NaiveDateTime.to_time(stock.update_at) %>
+          <% end %>
+          </div>
+        </div>
+      </div>
+      <div class="px-6 pt-4 pb-2">
+      </div>
+      </div>
+    </div>
+    </div>
+
+    <div class="px-10 py-10">
+      <p class="text-l font-bold">Update Counter: <%= @counter %></p>
+    </div>
 
     <.form
       for={@form}
       phx-change="add_stock"
     >
-      <.input field={@form[:list_stock]} />
+      <.input_stocks field={@form[:list_stock]} />
     </.form>
+    </div>
 
     </section>
     """
@@ -63,12 +84,17 @@ defmodule LivePubDemoWeb.CustomStockList do
     #Logger.info("update stock price, id: #{stock_name}")
 
     # build new stock for cached
-    stock = %{stock_name: stock_name, stock_price: price, update_at: time}
+    stock = %{id: stock_name, stock_name: stock_name, stock_price: price, update_at: time}
 
-    stocks = socket.assigns.stocks
-    stocks =
-      if Map.has_key?(stocks, stock_name) do
-        Map.update!(stocks, stock_name,
+    cached =
+      socket.assigns.cached
+      |> Enum.reduce(%{}, fn {k, v}, acc ->
+          v = Map.put(v, :changed, false)
+          Map.put(acc, k, v)
+        end)
+    cached =
+      if Map.has_key?(cached, stock_name) do
+        Map.update!(cached, stock_name,
         fn old ->
           color =
             cond do
@@ -79,19 +105,38 @@ defmodule LivePubDemoWeb.CustomStockList do
               true ->
                 "color: black"
             end
+          changed = old.stock_price != price
 
           stock
           |> Map.put(:stock_price, price)
           |> Map.put(:update_at, time)
           |> Map.put(:color, color)
+          |> Map.put(:changed, changed)
         end)
       else
-        stocks
+        cached
       end
 
-    socket =  assign(socket, :stocks, stocks)
+    updated_stock =
+      cached
+      |> Enum.filter(fn {_k, v} ->
+          v.changed
+      end)
+      |> Enum.map(fn {_k, v} -> v end)
 
-    {:noreply, update(socket, :counter, &(&1 + 1))}
+    socket =
+      updated_stock
+      |> Enum.reduce(socket, fn stock, acc ->
+        acc
+        |> stream_insert(:stocks, stock)
+      end)
+
+    socket =
+      socket
+      |> assign(:cached, cached)
+      |> update(:counter, &(&1 + 1))
+
+    {:noreply, socket}
   end
 
   @impl true
@@ -99,26 +144,48 @@ defmodule LivePubDemoWeb.CustomStockList do
     Logger.info("update stock price, id: #{stock_name}")
 
     # build new stock for cached
-    stock = %{stock_name: stock_name, stock_price: "N/A", update_at: "N/A"}
+    stock = %{id: stock_name, stock_name: stock_name, stock_price: "N/A", update_at: "N/A"}
 
     PubSub.subscribe(@pubsub_name, @pubsub_topic_stock_prefix <> stock_name)
 
-    {:noreply, assign(socket, :stocks, Map.put(socket.assigns, stock_name, stock))}
+    socket =
+      socket
+      |> stream_insert(socket, :stocks, [stock])
+      |> assign(:cached, Map.put(socket.assigns.cached, stock_name, stock))
+
+    {:noreply, socket}
   end
 
   @impl true
   def handle_event("add_stock", %{"list_stock" => value},  socket) do
     Logger.debug("add event, value: #{inspect value}")
     new_list = String.split(value)
-    current_stocks = socket.assigns.stocks
+    current_stocks = socket.assigns.cached
 
-    updated_stocks = update_stocks(new_list, current_stocks)
+    {updated_stocks, ignore_stocks} = update_stocks(new_list, current_stocks)
+
+    Logger.debug("updated_stocks: #{inspect updated_stocks}, \nignore_stocks: #{inspect ignore_stocks}")
 
     fields = %{"list_stock" => value}
 
     socket =
+      updated_stocks
+      |> Enum.filter(fn {_k, v} -> v.new end)
+      |> Enum.map(fn {_k, v} -> v end)
+      |> Enum.reduce(socket, fn stock, acc ->
+        acc
+        |> stream_insert(:stocks, stock)
+      end)
+
+
+    socket = Enum.reduce(ignore_stocks, socket, fn {_, stock}, acc ->
+      acc
+      |> stream_delete(:stocks, stock)
+    end)
+
+    socket =
       socket
-      |> assign(:stocks, updated_stocks)
+      |> assign(:cached, updated_stocks)
       |> assign(:total, map_size(updated_stocks))
       |> assign(:page_title, "Custom Stock List (#{map_size(updated_stocks)})")
       |> assign(form: to_form(fields))
@@ -130,7 +197,7 @@ defmodule LivePubDemoWeb.CustomStockList do
   def terminate(reason, socket) do
     Logger.info("session: #{socket.assigns.session_id}, terminate: #{inspect reason}")
 
-    for stock_name <- Map.keys(socket.assigns.stocks) do
+    for stock_name <- Map.keys(socket.assigns.cached) do
       PubSub.unsubscribe(@pubsub_name, @pubsub_topic_stock_prefix <> stock_name)
     end
 
@@ -139,7 +206,7 @@ defmodule LivePubDemoWeb.CustomStockList do
 
   ### Public functions ###
 
-  def input(assigns) do
+  def input_stocks(assigns) do
     ~H"""
     <input type="text" name={@field.name} id={@field.id} value={@field.value} placeholder="Add stock here, seperated by space" />
     """
@@ -148,17 +215,17 @@ defmodule LivePubDemoWeb.CustomStockList do
 
   ### Private functions ###
 
-  defp update_stocks(list, stocks) when is_map(stocks) and is_list(list) do
-    update_stocks(list, stocks, %{})
+  defp update_stocks(new_list, current_stocks) when is_map(current_stocks) and is_list(new_list) do
+    update_stocks(new_list, current_stocks, %{})
   end
 
-  defp update_stocks([], stocks, new_stocks) do
+  defp update_stocks([], current_stocks, new_stocks) do
     # unsubscribe stocks not in new list
-    for stock_name <- Map.keys(stocks), !Map.has_key?(new_stocks, stock_name) do
+    for stock_name <- Map.keys(current_stocks), !Map.has_key?(new_stocks, stock_name) do
       PubSub.unsubscribe(@pubsub_name, @pubsub_topic_stock_prefix <> stock_name)
     end
 
-    new_stocks
+    {new_stocks, current_stocks}
   end
 
   defp update_stocks([name | rest], stocks, new_stocks) do
@@ -177,12 +244,14 @@ defmodule LivePubDemoWeb.CustomStockList do
           |> Map.put_new(:stock_price, "N/A")
           |> Map.put_new(:update_at, "N/A")
           |> Map.put_new(:color, "color: black")
+          |> Map.put_new(:id, name)
+          |> Map.put_new(:new, true)
 
         s ->
-          s
+          Map.put(s, :new, false)
       end
 
-    update_stocks(rest, stocks, Map.put(new_stocks, name, stock))
+    update_stocks(rest, Map.delete(stocks, name), Map.put(new_stocks, name, stock))
   end
 
   # just simple verification function for check valid stock name

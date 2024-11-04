@@ -27,9 +27,15 @@ defmodule LivePubDemoWeb.DynamicStockList do
     stock_names = for {name, _} <- stocks, into: [], do: name
     PubSub.broadcast(@pubsub_name, @pubsub_topic_common, {:join, session_id, stock_names})
 
+    stream_data =
+      Enum.reduce(stocks, [], fn {name, stock}, acc ->
+        [stock | acc]
+      end)
+
     socket =
       socket
-      |> assign(:stocks, stocks)
+      |> stream(:stocks, stream_data)
+      |> assign(:stock_data, stocks)
       |> assign(:from, from)
       |> assign(:to, to)
       |> assign(:cached, %{})
@@ -48,31 +54,54 @@ defmodule LivePubDemoWeb.DynamicStockList do
   def render(assigns) do
    ~H"""
     <section class="phx-hero">
-    <h1>List of stocks (range: <%= @from %> to <%= @to %>)</h1>
-    <table>
-        <tr>
-            <td>Stock</td>
-            <td>Price</td>
-            <td>Time</td>
-        </tr>
-        <%= for {_, stock} <- @stocks do %>
-           <.live_component module={LivePubDemoWeb.StockItem} id={stock.stock_name} stock={stock} />
-        <% end %>
-    </table>
-    <p>Update Counter: <%= @counter %></p>
-    <button phx-click="update_10">update every 10ms</button>
-    <button phx-click="update_100">update every 100ms</button>
-    <button phx-click="update_1000">update every 1000ms</button>
+    <div class="flex-row">
+    <div>
+    <p class="text-xl font-bold">List of stocks (range: <%= @from %> to <%= @to %>)</p>
+    </div>
+
+    <div class="grid gird-cols-5 sx:grid-cols-3 sm:grid-cols-3 md:grid-cols-5 xl:grid-cols-6 p-1  space-y-3 space-x-3" div id="stocks" phx-update="stream">
+    <div :for={{id, stock} <- @streams.stocks} id={id}>
+      <div class="container max-w-md rounded overflow-hidden shadow-lg bg-gray-300">
+      <div class="px-2 py-2" >
+          <div class="font-bold text-xl mb-2"><%= stock.stock_name %></div>
+          <div class="flex flex-col text-sm text-gray-600 italic">
+          <div class="" style={stock.color}> Price: <%= stock.stock_price %></div>
+          <div class=""> Update:
+          <%= if stock.update_at == "N/A" do %>
+            <%= "N/A" %>
+          <% else %>
+           <%= NaiveDateTime.to_time(stock.update_at) %>
+          <% end %>
+          </div>
+        </div>
+      </div>
+      <div class="px-6 pt-4 pb-2">
+      </div>
+      </div>
+    </div>
+    </div>
+
+    <div class="px-10 py-10">
+      <p class="text-l font-bold">Update Counter: <%= @counter %></p>
+    </div>
+    <div class="flex-col">
+    <button type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" phx-click="update_10">
+      update every 10ms
+    </button>
+    <button type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" phx-click="update_100">update every 100ms</button>
+    <button type="button" class="text-white bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 me-2 mb-2 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none dark:focus:ring-blue-800" phx-click="update_1000">update every 1000ms</button>
+    </div>
+    </div>
     </section>
     """
   end
 
   @impl true
   def handle_info({:update_price, {stock_name, price, time}}, socket) do
-    Logger.info("update stock price, id: #{stock_name}")
+    Logger.info("update stock price, id: #{stock_name}, price: #{price}, time: #{time}")
 
     # build new stock for cached
-    stock = %{stock_name: stock_name, stock_price: price, update_at: time}
+    stock = %{id: stock_name, stock_name: stock_name, stock_price: price, update_at: time}
 
     # update cached stock
     cached = Map.put(socket.assigns.cached, stock_name, stock)
@@ -86,16 +115,33 @@ defmodule LivePubDemoWeb.DynamicStockList do
       if map_size(socket.assigns.cached) > 0 do
         Logger.info("update stock price for client, size: #{map_size(socket.assigns.cached)}")
 
-        newStocks = Map.merge(socket.assigns.stocks, socket.assigns.cached, &update_stock/3)
+        newStocks = update_stock(socket.assigns.stock_data, socket.assigns.cached)
+
+        updated_stock_data =
+          Enum.reduce(newStocks, socket.assigns.stock_data, fn stock, acc ->
+            acc
+            |> Map.put(stock.stock_name, stock)
+          end)
+
+        Logger.info("update stock price for client: #{inspect(newStocks)}")
+
+        socket =
+          Enum.reduce(newStocks, socket, fn stock, acc ->
+            stream_insert(acc, :stocks, stock)
+          end)
+
+        Logger.info("stream stocks: #{inspect(socket.assigns.streams.stocks)}")
 
         socket
-        |> assign(:stocks, newStocks)
         |> update(:counter, &(&1 + Kernel.map_size(socket.assigns.cached)))
         |> assign(:cached, %{})
+        |> assign(:stock_data, updated_stock_data)
 
       else
         socket
       end
+
+
 
     # send update for next time.
     timer_ref =  Process.send_after(self(), :push_to_client, socket.assigns.sleep_time)
@@ -155,7 +201,7 @@ defmodule LivePubDemoWeb.DynamicStockList do
 
     Process.cancel_timer(socket.assigns.timer_ref)
 
-    for stock_name <- Map.keys(socket.assigns.stocks) do
+    for stock_name <- Map.keys(socket.assigns.cached) do
       PubSub.unsubscribe(@pubsub_name, @pubsub_topic_stock_prefix <> stock_name)
     end
 
@@ -164,9 +210,19 @@ defmodule LivePubDemoWeb.DynamicStockList do
 
   ### private functions ###
 
-  defp update_stock(_key, old, new) do
+  defp update_stock(old, new) do
+    Enum.map(new, fn {name, new_stock} ->
+      old_stock = Map.get(old, name)
+      update_stock_item(old_stock, new_stock)
+    end)
+  end
+
+  defp update_stock_item(old, new) do
+    Logger.info("update stock item, old: #{inspect old}, new: #{inspect new}")
     color =
       cond do
+        old.stock_price == "N/A" ->
+          "color: black"
         old.stock_price < new.stock_price ->
           "color: blue"
         old.stock_price > new.stock_price ->
@@ -175,7 +231,9 @@ defmodule LivePubDemoWeb.DynamicStockList do
           "color: black"
       end
 
-    Map.put(new, :color, color)
+    new
+    |> Map.put(:color, color)
+    |> Map.put(:changed, old.stock_price != new.stock_price)
   end
 
   defp gen_stock(from, to) do
@@ -194,6 +252,7 @@ defmodule LivePubDemoWeb.DynamicStockList do
       |> Map.put_new(:stock_price, "N/A")
       |> Map.put_new(:update_at, "N/A")
       |> Map.put_new(:color, "color: black")
+      |> Map.put_new(:id, name)
 
     # subscribe stock for listening price changing
     PubSub.subscribe(@pubsub_name, @pubsub_topic_stock_prefix <> name)

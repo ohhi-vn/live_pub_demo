@@ -28,6 +28,8 @@ defmodule LivePubDemoWeb.ConnCase do
 
       # The default endpoint for testing
       @endpoint LivePubDemoWeb.Endpoint
+
+      use LivePubDemoWeb, :verified_routes
     end
   end
 

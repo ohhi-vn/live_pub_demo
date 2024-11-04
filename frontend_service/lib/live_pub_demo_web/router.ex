@@ -5,7 +5,7 @@ defmodule LivePubDemoWeb.Router do
     plug :accepts, ["html"]
     plug :fetch_session
     plug :fetch_live_flash
-    plug :put_root_layout, {LivePubDemoWeb.LayoutView, :root}
+    plug :put_root_layout, {LivePubDemoWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug :assign_session_id
@@ -18,7 +18,7 @@ defmodule LivePubDemoWeb.Router do
   scope "/", LivePubDemoWeb do
     pipe_through :browser
 
-    get "/", PageController, :index
+    get "/", PageController, :home
 
     live "/dynamic_list", DynamicStockList
     live "/fix_list", FixStockList

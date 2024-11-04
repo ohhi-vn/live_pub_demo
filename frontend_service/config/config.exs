@@ -12,7 +12,8 @@ config :live_pub_demo, LivePubDemoWeb.Endpoint,
   url: [host: "localhost"],
   render_errors: [view: LivePubDemoWeb.ErrorView, accepts: ~w(html json), layout: false],
   pubsub_server: LivePubDemo.PubSub,
-  live_view: [signing_salt: "7FLrmwRe"]
+  live_view: [signing_salt: "7FLrmwRe"],
+  adapter: Bandit.PhoenixAdapter
 
 # Configure esbuild (the version is required)
 config :esbuild,
@@ -32,7 +33,7 @@ config :tailwind,
       --input=css/app.css
       --output=../priv/static/assets/app.css
     ),
-    cd: Path.expand("./assets", __DIR__)
+    cd: Path.expand("../assets", __DIR__)
   ]
 
 # Configures Elixir's Logger

@@ -21,7 +21,7 @@ defmodule LivePubDemoWeb.Endpoint do
     at: "/",
     from: :live_pub_demo,
     gzip: false,
-    only: ~w(assets fonts images favicon.ico robots.txt)
+    only: LivePubDemoWeb.static_paths()
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
