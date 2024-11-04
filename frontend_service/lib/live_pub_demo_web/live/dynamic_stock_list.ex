@@ -42,7 +42,7 @@ defmodule LivePubDemoWeb.DynamicStockList do
       |> assign(:counter, 0)
       |> assign(:page_title, "Dynamic Stock List (#{map_size(stocks)})")
       |> assign(:session_id, session_id)
-      |> assign(:sleep_time, 300)
+      |> assign(:sleep_time, 1000)
 
 
     timer_ref =  Process.send_after(self(), :push_to_client, socket.assigns.sleep_time)

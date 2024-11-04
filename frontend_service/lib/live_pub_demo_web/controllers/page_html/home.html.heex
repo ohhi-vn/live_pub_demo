@@ -1,21 +1,34 @@
 <section class="phx-hero">
-  <h1>Welcome to Elixir Saigon!</h1>
-  <p>Small Phoenix LiveView applicaiton for demo.</p>
-</section>
+<div class="flex-row px-10 py-10 justify-center bg-slate-100">
+  <div class="text-xl font-bold">Welcome to Elixir Saigon!</div>
+  <div class="text-l italic">Small Phoenix LiveView applicaiton for demo.</div>
+</div>
 
-<section class="row">
-  <article class="column">
-    <h2>Choose a stock list LiveView</h2>
-    <ul>
+
+  <div class="flex-row px-10 py-10 bg-slate-50">
+    <p class="text-l font-semibold">Choose a stock list LiveView</p>
+    
+    <ul class="list-disc px-5 px-5">
       <li>
-        <a href="/dynamic_list">Dynamic list</a>
+        <a href="/dynamic_list?from=1&to=50" class="">
+        <p class="text-blue-600 hover:text-red-800">Dynamic list</p></a>
       </li>
       <li>
-        <a href="/fix_list">Fix list</a>
+        <a href="/custom_list">
+        <p class="text-blue-600 hover:text-red-800">User list</p></a>
       </li>
       <li>
-        <a href="/custom_list">Custom list</a>
+        <a href="/simple_list">
+        <p class="text-blue-600 hover:text-red-800">Simple list</p></a>
+      </li>
+      <li>
+        <a href="/fix_list">
+        <p class="text-blue-600 hover:text-red-800">Fix list</p></a>
+      </li>
+       <li>
+        <a href="/dashboard">
+        <p class="text-blue-600 hover:text-red-800">Live Dashboard</p></a>
       </li>
     </ul>
-  </article>
+  </div>
 </section>

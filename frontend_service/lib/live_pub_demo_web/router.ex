@@ -22,6 +22,7 @@ defmodule LivePubDemoWeb.Router do
 
     live "/dynamic_list", DynamicStockList
     live "/fix_list", FixStockList
+    live "/simple_list", SimpleStockList
     live "/custom_list", CustomStockList
   end
 

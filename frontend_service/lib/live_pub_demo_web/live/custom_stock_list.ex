@@ -12,8 +12,7 @@ defmodule LivePubDemoWeb.CustomStockList do
   ### Callbacks ###
 
   @impl true
-  def mount(params, session, socket) do
-    #:dbg.p(self(), :m)
+  def mount(_params, session, socket) do
     session_id = Map.get(session, "session_id")
     PubSub.broadcast(@pubsub_name, @pubsub_topic_common, {:join,  session_id, []})
 
@@ -208,7 +207,7 @@ defmodule LivePubDemoWeb.CustomStockList do
 
   def input_stocks(assigns) do
     ~H"""
-    <input type="text" name={@field.name} id={@field.id} value={@field.value} placeholder="Add stock here, seperated by space" />
+    <input class="w-[700px]" type="text" name={@field.name} id={@field.id} value={@field.value} placeholder="Add stock here, seperated by space (ex: stock_1 stock_2)" />
     """
   end
 
