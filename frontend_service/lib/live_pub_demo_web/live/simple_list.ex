@@ -12,8 +12,15 @@ defmodule LivePubDemoWeb.SimpleStockList do
 
   ### Callbacks ###
 
+  @impl true
   def mount(_params, session, socket) do
-    :dbg.p(self(), :m)
+    IO.inspect(self(), label: "MOUNT_EVENT")
+
+    # debug info
+    # :dbg.tracer()
+    # :dbg.p(self(), [:m])
+    # dbg()
+
     session_id = Map.get(session, "session_id")
 
     {socket, stock_names} = gen_stock(socket)
@@ -22,7 +29,7 @@ defmodule LivePubDemoWeb.SimpleStockList do
 
     socket =
       socket
-      |> assign(:page_title, "Fixed Stock List (#{length(stock_names)})")
+      |> assign(:page_title, "Simple Stock List (#{length(stock_names)})")
       |> assign(:counter, 0)
       |> assign(:session_id, session_id)
       |> assign(:stock_list, stock_names)
@@ -30,8 +37,13 @@ defmodule LivePubDemoWeb.SimpleStockList do
     {:ok,  socket}
   end
 
+  @impl true
   def render(assigns) do
-   ~H"""
+    IO.inspect(self(), label: "RENDER_EVENT")
+    # dbg()
+
+
+    ~H"""
     <section class="phx-hero">
     <div class="flex-row">
       <div>
@@ -66,8 +78,10 @@ defmodule LivePubDemoWeb.SimpleStockList do
     """
   end
 
+  @impl true
   def handle_info({:update_price, {stock_name, price, time}}, socket) do
-    #Logger.info("update stock price, id: #{stock_name}")
+    IO.inspect(self(), label: "HANDLE_INFO_EVENT")
+    #dbg()
 
     # build new stock for cached
     stock = %{stock_name: stock_name, stock_price: price, update_at: time}
@@ -95,6 +109,10 @@ defmodule LivePubDemoWeb.SimpleStockList do
 
   @impl true
   def terminate(reason, socket) do
+    IO.inspect(self(), label: "TERMINATE_EVENT")
+    #dbg()
+    :dbg.stop()
+
     Logger.info("session: #{socket.assigns.session_id}, terminate: #{inspect reason}")
 
     for stock_name <- socket.assigns.stock_list do
@@ -105,7 +123,7 @@ defmodule LivePubDemoWeb.SimpleStockList do
   end
 
   defp gen_stock(socket) do
-    gen_stock(1, 3, socket, [])
+    gen_stock(1, 2, socket, [])
   end
 
   defp gen_stock(from, to, socket, stock_names) when from > to do

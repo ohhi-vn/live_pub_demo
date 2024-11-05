@@ -63,6 +63,8 @@ Note: If you use Windows please run `set PORT=4001` to set environment variable.
 
 Open browser then go to:
 
+Home page [http://localhost:4001/](http://localhost:4001/)
+
 dynamic stock list [http://localhost:4001/dynamic_list?from=1&to=1500](http://localhost:4001/dynamic_list?from=1&to=1500)
 
 You can change number of stocks by change `from` and `to` parameter (from 1 to 10k) in query.
