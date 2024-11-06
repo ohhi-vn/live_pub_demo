@@ -19,7 +19,6 @@ defmodule LivePubDemoWeb.SimpleStockList do
     # debug info
     # :dbg.tracer()
     # :dbg.p(self(), [:m])
-    # dbg()
 
     session_id = Map.get(session, "session_id")
 
@@ -40,8 +39,6 @@ defmodule LivePubDemoWeb.SimpleStockList do
   @impl true
   def render(assigns) do
     IO.inspect(self(), label: "RENDER_EVENT")
-    # dbg()
-
 
     ~H"""
     <section class="phx-hero">
@@ -81,7 +78,6 @@ defmodule LivePubDemoWeb.SimpleStockList do
   @impl true
   def handle_info({:update_price, {stock_name, price, time}}, socket) do
     IO.inspect(self(), label: "HANDLE_INFO_EVENT")
-    #dbg()
 
     # build new stock for cached
     stock = %{stock_name: stock_name, stock_price: price, update_at: time}
@@ -110,7 +106,7 @@ defmodule LivePubDemoWeb.SimpleStockList do
   @impl true
   def terminate(reason, socket) do
     IO.inspect(self(), label: "TERMINATE_EVENT")
-    #dbg()
+
     :dbg.stop()
 
     Logger.info("session: #{socket.assigns.session_id}, terminate: #{inspect reason}")

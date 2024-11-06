@@ -98,7 +98,7 @@ defmodule LivePubDemoWeb.DynamicStockList do
 
   @impl true
   def handle_info({:update_price, {stock_name, price, time}}, socket) do
-    Logger.info("update stock price, id: #{stock_name}, price: #{price}, time: #{time}")
+    # Logger.info("update stock price, id: #{stock_name}, price: #{price}, time: #{time}")
 
     # build new stock for cached
     stock = %{id: stock_name, stock_name: stock_name, stock_price: price, update_at: time}
@@ -113,7 +113,7 @@ defmodule LivePubDemoWeb.DynamicStockList do
   def handle_info(:push_to_client, socket) do
     socket =
       if map_size(socket.assigns.cached) > 0 do
-        Logger.info("update stock price for client, size: #{map_size(socket.assigns.cached)}")
+        # Logger.info("update stock price for client, size: #{map_size(socket.assigns.cached)}")
 
         newStocks = update_stock(socket.assigns.stock_data, socket.assigns.cached)
 
@@ -123,14 +123,14 @@ defmodule LivePubDemoWeb.DynamicStockList do
             |> Map.put(stock.stock_name, stock)
           end)
 
-        Logger.info("update stock price for client: #{inspect(newStocks)}")
+        # Logger.info("update stock price for client: #{inspect(newStocks)}")
 
         socket =
           Enum.reduce(newStocks, socket, fn stock, acc ->
             stream_insert(acc, :stocks, stock)
           end)
 
-        Logger.info("stream stocks: #{inspect(socket.assigns.streams.stocks)}")
+        # Logger.info("stream stocks: #{inspect(socket.assigns.streams.stocks)}")
 
         socket
         |> update(:counter, &(&1 + Kernel.map_size(socket.assigns.cached)))
@@ -218,7 +218,7 @@ defmodule LivePubDemoWeb.DynamicStockList do
   end
 
   defp update_stock_item(old, new) do
-    Logger.info("update stock item, old: #{inspect old}, new: #{inspect new}")
+    # Logger.info("update stock item, old: #{inspect old}, new: #{inspect new}")
     color =
       cond do
         old.stock_price == "N/A" ->
