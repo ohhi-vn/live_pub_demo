@@ -1,32 +1,67 @@
 # Introduce
 
-This is simple demo for sharing topic "Phoenix LiveView & Pubsub for Realtime & Scable webapp"
+This is simple demo for sharing topic "Phoenix LiveView & Pubsub for Realtime & Scable webapp".
+
+Project start from old version of Phoenix and converted to version 1.7.
 
 ## structure of project
 
-Project has two part frontend service & trading service.
+Project has two app, frontend service & trading service. Two apps join together in cluster.
 
 Trading service is a simulator stock price & push price change to frontend.
 
-Frontend show stock price from simulator by Phoenix LiveView.
+Frontend show stock price from simulator by Phoenix LiveView. We can add more frontends if needed.
 
 Using Phoenix PubSub to transport data between trading to frontend.
 
-### Flow of events
+### Cluster
+
+One frontend:
+
+```mermaid
+graph LR
+    Frontend(Frontend) -->|subs stocks| Trading(Trading)
+    Trading-->|update stock| Frontend
+```
+
+multi frontends:
+
+```mermaid
+graph LR
+    Frontend_1(Frontend_1) <--> Trading(Trading)
+    Frontend_2(Frontend_2) <--> Trading(Trading)
+    Frontend_3(Frontend_3) <--> Trading(Trading)
+```
+
+### Flow of events (Websocket phase)
+
+Fix stock list, dynamic stock list, simple stock list:
 
 ```mermaid
 sequenceDiagram
     participant Client
     participant LiveView Process
     participant Trading
-    Client->>LiveView Process: Request LiveView
+    Client->>LiveView Process:  Open Websocket
     LiveView Process->>Trading: Subscribe & Request stock price from trading (use PubSub)
-    LiveView Process->>Client: Send full HTML + JS
-    Client->>LiveView Process: LiveView open websocket
-    Trading->>LiveView Process: Send stock price
-    LiveView Process->>Client: (WS) Send diff data for Client udpate
+    LiveView Process->>Client: HTML content
     Trading->>LiveView Process: update stock price
-    LiveView Process->>Client: (WS) Send diff data for Client udpate
+    LiveView Process->>Client: diff HTML
+```
+
+For custom stock list input by user:
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant LiveView Process
+    participant Trading
+    Client->>LiveView Process:  Open Websocket
+    LiveView Process->>Client: HTML content
+    Client->>LiveView Process:  user input data
+    LiveView Process->>Trading: Subscribe & Request stock price from trading (use PubSub)
+    Trading->>LiveView Process: update stock price
+    LiveView Process->>Client: diff HTML
 ```
 
 ## Guide
@@ -63,7 +98,9 @@ Note: If you use Windows please run `set PORT=4001` to set environment variable.
 
 Open browser then go to:
 
-Home page [http://localhost:4001/](http://localhost:4001/)
+Home page [http://localhost:4001/](http://localhost:4001/) and choose a link need to open.
+
+Or open directly with link:
 
 dynamic stock list [http://localhost:4001/dynamic_list?from=1&to=1500](http://localhost:4001/dynamic_list?from=1&to=1500)
 
